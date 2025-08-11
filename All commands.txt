@@ -1,0 +1,111 @@
+Завантажуємо оригінальний образ х64 з робочим столом (потім його вимкнемо, ця версія має необхідні пакети і стабільніше працює)
+
+Встановлення потрібних пакетів
+sudo apt install -y ntpdate
+sudo apt install -y cec-utils curl net-tools overlayroot ntpdate
+
+Вимикаємо робочий стіл 
+sudo raspi-config  
+System>Boot>B1
+
+Завантажуємо резервне відео з гугл диску, на гугл диску потрібно надати доступ всім хто має посилання
+URL="https://drive.google.com/file/d/1jImUISz......./view?usp=sharing"; \
+ID=$(echo "$URL" | sed -n 's#.*\/d\/\([^\/]*\).*#\1#p'); \
+C=/tmp/gdcookie; \
+curl -s -c "$C" "https://drive.google.com/uc?export=download&id=$ID" >/dev/null; \
+CODE=$(awk '/download_warning/ {print $NF}' "$C"); \
+curl -s -L -b "$C" "https://drive.google.com/uc?export=download&confirm=$CODE&id=$ID" -o fallback.mp4; \
+ls -lh fallback.mp4
+
+Або прямо з хоста (інколи замічав, що cloudflare не пропускає таке завантаження, то я встановлював tor і скачував через нього)
+curl -L -o fallback.mp4 https://yourhost.com.ua/raspberry/coffe.mp4
+
+Вимкнення енергозбереження з вайфаю (незнаю чи працює, логи не міг знайти, так як перейшов на кабель micro-usb>LAN
+sudo nano /etc/rc.local
+І перед exit 0 додаємо:
+iw dev wlan0 set power_save off
+
+Створення скриптів (вміст в файлах проекту)
+sudo nano play_video.sh  
+
+sudo nano tv_cron.sh
+
+Надаємо доступ на виконання скриптів
+sudo chmod +x /home/yaroslav/play_video.sh    sudo chmod +x /home/yaroslav/tv_cron.sh
+
+Створити systemd сервіс tvcontrol.service (вміст в файлах проекту)
+sudo nano /etc/systemd/system/tvcontrol.service
+
+Активовуємо сервіс
+sudo systemctl daemon-reload
+sudo systemctl enable tvcontrol.service
+
+Щоденний ребут, та виконання скрипта tv_cron.sh
+crontab -e
+в кінці добавляємо це
+*/5 * * * * /home/yaroslav/tv_cron.sh
+0 4 * * * /sbin/reboot
+
+Переклад системи в read-only
+Увімкнути overlayroot:
+
+sudo nano /etc/overlayroot.conf
+
+в кінці змінюємо overlayroot="" на overlayroot="tmpfs"
+зберігаємо та застосовуємо зміни
+sudo update-initramfs -u
+
+Перевірка rad-only:
+mount | grep 'on / '
+Має бути:
+overlay on / type overlay (ro,...)
+
+ЛОГИ
+cat /dev/shm/tv.log
+
+
+✅ Як тимчасово вимкнути overlayroot (на 1 сесію):
+
+ Увійди в режим редагування root-файлів (chroot)
+
+sudo overlayroot-chroot
+
+3️⃣ Редагуй конфігурацію
+nano /etc/overlayroot.conf
+🔧 Заміни:
+overlayroot=tmpfs
+На:
+overlayroot=disabled
+Збережи: Ctrl + O, потім Enter, і вийди: Ctrl + X
+
+4️⃣ Онови initramfs
+update-initramfs -u
+sudo update-initramfs -u
+Це оновить системний образ старту. Якщо з'являється попередження:
+W: Couldn't identify type of root file system for fsck hook
+— ігноруй його, це не критично.
+
+5️⃣ Вийди з chroot
+
+exit
+6️⃣ Перезавантаж систему
+
+sudo reboot
+7️⃣ Перевір, що overlayroot вимкнено
+Після перезавантаження виконай:
+mount | grep 'on / '
+Має з’явитися:
+/dev/mmcblk0p2 on / type ext4 (rw,...
+
+На телевізорі обов'язково включити CEC підтримку, щоб телевізор вмикався та вимикався.
+Для превірки
+включити телевізор
+echo "on 0" | cec-client -s -d 1
+виключити
+echo "standby 0" | cec-client -s -d 1
+
+Перевірки чи відео завантажилось
+ls -lh fallback.mp4 
+
+
+
