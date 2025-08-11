@@ -1,4 +1,5 @@
 Download the original x64 image with the desktop (then disable it, this version has the necessary packages and works more stably)
+ATTENTION IN THE DEFAULT INSTALLATION THE USER IS "pi" , And in this case the user is "yaroslav" which we specify when installing Raspberry Image Downloader
 
 Installing the necessary packages
 sudo apt install -y ntpdate
