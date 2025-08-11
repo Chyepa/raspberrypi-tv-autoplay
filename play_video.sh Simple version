@@ -1,0 +1,21 @@
+Ця версія скрипта, просто для відтвоерння відео без нічого, з пінгуванням телевізора, щоб він не впав в сон
+This version of the script is just for playing the video without anything, with pinging the TV so it doesn't fall asleep
+
+#!/bin/bash
+
+FALLBACK_VIDEO="/home/yaroslav/fallback.mp4"
+LOG="/dev/shm/tv.log"
+MAX_LOG_LINES=500
+
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') $*" >> "$LOG"
+    tail -n $MAX_LOG_LINES "$LOG" > "$LOG.tmp" && mv "$LOG.tmp" "$LOG"
+}
+
+if pgrep -f "cvlc.*fallback.mp4" > /dev/null; then
+    log "⚠️ Відео вже запущено — не запускаємо повторно"
+    exit 0
+fi
+
+log "▶️ Відтворення локального відео: $FALLBACK_VIDEO"
+cvlc --repeat --no-audio --fullscreen --no-osd "$FALLBACK_VIDEO" > /dev/null 2>&1 &
