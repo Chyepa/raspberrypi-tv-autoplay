@@ -1,0 +1,107 @@
+Download the original x64 image with the desktop (then disable it, this version has the necessary packages and works more stably)
+
+Installing the necessary packages
+sudo apt install -y ntpdate
+sudo apt install -y cec-utils curl net-tools overlayroot ntpdate
+
+Disable the desktop
+sudo raspi-config
+System>Boot>B1
+
+Download the backup video from Google Drive, on Google Drive you need to provide access to everyone who has the link
+URL="https://drive.google.com/file/d/1jImUISz......./view?usp=sharing"; \
+ID=$(echo "$URL" | sed -n 's#.*\/d\/\([^\/]*\).*#\1#p'); \
+C=/tmp/gdcookie; \
+curl -s -c "$C" "https://drive.google.com/uc?export=download&id=$ID" >/dev/null; \
+CODE=$(awk '/download_warning/ {print $NF}' "$C"); \
+curl -s -L -b "$C" "https://drive.google.com/uc?export=download&confirm=$CODE&id=$ID" -o fallback.mp4; \
+ls -lh fallback.mp4
+
+Or directly from the host (sometimes I noticed that cloudflare does not pass such a download, so I installed tor and downloaded through it)
+curl -L -o fallback.mp4 https://yourhost.com.ua/raspberry/coffe.mp4
+
+Disabling power saving from wifi (I don't know if it works, I couldn't find the logs, since I switched to a micro-usb>LAN cable
+sudo nano /etc/rc.local
+And before exit 0 add:
+iw dev wlan0 set power_save off
+
+Creating scripts (content in project files)
+sudo nano play_video.sh
+
+sudo nano tv_cron.sh
+
+Granting access to execute scripts
+sudo chmod +x /home/yaroslav/play_video.sh sudo chmod +x /home/yaroslav/tv_cron.sh
+
+Create systemd service tvcontrol.service (content in project files)
+sudo nano /etc/systemd/system/tvcontrol.service
+
+Activate the service
+sudo systemctl daemon-reload
+sudo systemctl enable tvcontrol.service
+
+Daily reboot, and run the tv_cron.sh script
+crontab -e
+at the end add this
+*/5 * * * * /home/yaroslav/tv_cron.sh
+0 4 * * * /sbin/reboot
+
+Translate the system to read-only
+Enable overlayroot:
+
+sudo nano /etc/overlayroot.conf
+
+at the end change overlayroot="" to overlayroot="tmpfs"
+save and apply changes
+sudo update-initramfs -u
+
+Check rad-only:
+mount | grep 'on / '
+It should be:
+overlay on / type overlay (ro,...)
+
+LOGS
+cat /dev/shm/tv.log
+
+✅ How to temporarily disable overlayroot (for 1 session):
+
+Enter edit mode root files (chroot)
+
+sudo overlayroot-chroot
+
+3️⃣ Edit the configuration
+nano /etc/overlayroot.conf
+🔧 Replace:
+overlayroot=tmpfs
+With:
+overlayroot=disabled
+Save: Ctrl + O, then Enter, and exit: Ctrl + X
+
+4️⃣ Update initramfs
+update-initramfs -u
+sudo update-initramfs -u
+This will update the system boot image. If you get a warning:
+W: Couldn't identify type of root file system for fsck hook
+— ignore it, it's not critical.
+
+5️⃣ Exit chroot
+
+exit
+6️⃣ Reboot the system
+
+sudo reboot
+7️⃣ Check that overlayroot is disabled
+After rebooting, run:
+mount | grep 'on / '
+You should see:
+/dev/mmcblk0p2 on / type ext4 (rw,...
+
+On the TV, you must enable CEC support so that the TV turns on and off.
+To check
+turn on the TV
+echo "on 0" | cec-client -s -d 1
+turn off
+echo "standby 0" | cec-client -s -d 1
+
+Check if the video loaded
+ls -lh fallback.mp4
