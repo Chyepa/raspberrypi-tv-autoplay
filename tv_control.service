@@ -1,0 +1,12 @@
+[Unit]
+Description=TV Video Control on Boot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+User=yaroslav
+ExecStart=/home/yaroslav/tv_cron.sh
+Restart=no
+
+[Install]
+WantedBy=multi-user.target
